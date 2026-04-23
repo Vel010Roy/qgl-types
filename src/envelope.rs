@@ -37,7 +37,11 @@ impl<T> Envelope<T> {
     }
 
     /// Create a child envelope that inherits the parent's correlation_id.
-    pub fn child(parent: &Envelope<impl std::any::Any>, source_service: impl Into<ServiceId>, payload: T) -> Self {
+    pub fn child(
+        parent: &Envelope<impl std::any::Any>,
+        source_service: impl Into<ServiceId>,
+        payload: T,
+    ) -> Self {
         Self {
             correlation_id: parent.correlation_id,
             parent_span_id: Some(parent.correlation_id),

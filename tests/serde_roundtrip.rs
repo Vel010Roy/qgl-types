@@ -25,27 +25,37 @@ fn roundtrip<T: serde::Serialize + serde::de::DeserializeOwned + std::fmt::Debug
 
 #[test]
 fn envelope_roundtrip() {
-    let env = Envelope::new("test-service", GpuState {
-        utilization_pct: 75.0,
-        memory_used_mb: 4096,
-        memory_total_mb: 8192,
-        temperature_c: Some(72.0),
-    });
+    let env = Envelope::new(
+        "test-service",
+        GpuState {
+            utilization_pct: 75.0,
+            memory_used_mb: 4096,
+            memory_total_mb: 8192,
+            temperature_c: Some(72.0),
+        },
+    );
     roundtrip(&env);
 }
 
 #[test]
 fn envelope_child_preserves_correlation() {
-    let parent = Envelope::new("parent", CpuState {
-        utilization_pct: 50.0,
-        core_count: 8,
-        frequency_mhz: Some(3200),
-    });
-    let child = Envelope::child(&parent, "child", RamState {
-        used_mb: 16000,
-        total_mb: 32000,
-        swap_used_mb: 0,
-    });
+    let parent = Envelope::new(
+        "parent",
+        CpuState {
+            utilization_pct: 50.0,
+            core_count: 8,
+            frequency_mhz: Some(3200),
+        },
+    );
+    let child = Envelope::child(
+        &parent,
+        "child",
+        RamState {
+            used_mb: 16000,
+            total_mb: 32000,
+            swap_used_mb: 0,
+        },
+    );
     assert_eq!(child.correlation_id, parent.correlation_id);
     assert_eq!(child.parent_span_id, Some(parent.correlation_id));
 }
@@ -54,47 +64,77 @@ fn envelope_child_preserves_correlation() {
 
 #[test]
 fn gpu_state_roundtrip() {
-    let s = GpuState { utilization_pct: 95.5, memory_used_mb: 6000, memory_total_mb: 8192, temperature_c: Some(80.0) };
+    let s = GpuState {
+        utilization_pct: 95.5,
+        memory_used_mb: 6000,
+        memory_total_mb: 8192,
+        temperature_c: Some(80.0),
+    };
     roundtrip(&s);
     assert!(s.is_valid());
 }
 
 #[test]
 fn gpu_state_invalid_utilization() {
-    let s = GpuState { utilization_pct: 150.0, memory_used_mb: 0, memory_total_mb: 8192, temperature_c: None };
+    let s = GpuState {
+        utilization_pct: 150.0,
+        memory_used_mb: 0,
+        memory_total_mb: 8192,
+        temperature_c: None,
+    };
     assert!(!s.is_valid());
 }
 
 #[test]
 fn cpu_state_roundtrip() {
-    let s = CpuState { utilization_pct: 45.0, core_count: 10, frequency_mhz: Some(3600) };
+    let s = CpuState {
+        utilization_pct: 45.0,
+        core_count: 10,
+        frequency_mhz: Some(3600),
+    };
     roundtrip(&s);
     assert!(s.is_valid());
 }
 
 #[test]
 fn ram_state_roundtrip() {
-    let s = RamState { used_mb: 16000, total_mb: 32000, swap_used_mb: 1024 };
+    let s = RamState {
+        used_mb: 16000,
+        total_mb: 32000,
+        swap_used_mb: 1024,
+    };
     roundtrip(&s);
     assert!(s.is_valid());
 }
 
 #[test]
 fn ram_state_invalid_overflow() {
-    let s = RamState { used_mb: 64000, total_mb: 32000, swap_used_mb: 0 };
+    let s = RamState {
+        used_mb: 64000,
+        total_mb: 32000,
+        swap_used_mb: 0,
+    };
     assert!(!s.is_valid());
 }
 
 #[test]
 fn thermal_state_roundtrip() {
-    let s = ThermalState { cpu_temp_c: 65.0, gpu_temp_c: Some(72.0), fan_speed_rpm: Some(2400) };
+    let s = ThermalState {
+        cpu_temp_c: 65.0,
+        gpu_temp_c: Some(72.0),
+        fan_speed_rpm: Some(2400),
+    };
     roundtrip(&s);
     assert!(s.is_valid());
 }
 
 #[test]
 fn battery_state_roundtrip() {
-    let s = BatteryState { level_pct: 87.5, charging: true, time_remaining_min: Some(120) };
+    let s = BatteryState {
+        level_pct: 87.5,
+        charging: true,
+        time_remaining_min: Some(120),
+    };
     roundtrip(&s);
     assert!(s.is_valid());
 }
@@ -107,9 +147,11 @@ fn network_address_info_roundtrip() {
         public_ip: None,
         vpn_ip: None,
         vpn_context: None,
-        nic_candidates: vec![
-            NicCandidate { name: "en0".into(), ip: "192.168.1.5".into(), is_wired: true },
-        ],
+        nic_candidates: vec![NicCandidate {
+            name: "en0".into(),
+            ip: "192.168.1.5".into(),
+            is_wired: true,
+        }],
     };
     roundtrip(&s);
     assert!(s.is_valid());
@@ -118,8 +160,12 @@ fn network_address_info_roundtrip() {
 #[test]
 fn network_address_all_none_invalid() {
     let s = NetworkAddressInfo {
-        internal_ip: None, lan_ip: None, public_ip: None, vpn_ip: None,
-        vpn_context: None, nic_candidates: vec![],
+        internal_ip: None,
+        lan_ip: None,
+        public_ip: None,
+        vpn_ip: None,
+        vpn_context: None,
+        nic_candidates: vec![],
     };
     assert!(!s.is_valid());
 }
@@ -132,6 +178,85 @@ fn node_resource_sample_roundtrip() {
     };
     roundtrip(&s);
     assert!(s.is_valid());
+}
+
+// --- Stream state ---
+
+/// Happy-path: a realistic DXGI+NVENC capture reading survives JSON
+/// roundtrip. Mirrors what nexox's state-pub will emit on
+/// `nexox/up/state/<node>/stream` once Task #34 lands.
+#[test]
+fn stream_state_roundtrip() {
+    let s = StreamState {
+        display_index: 0,
+        capture_backend: "dxgi".into(),
+        encoder_name: "h264_nvenc".into(),
+        encoder_pix_fmt: "nv12".into(),
+        width: 1920,
+        height: 1080,
+        fps: 4.0,
+    };
+    roundtrip(&s);
+    assert!(s.is_valid());
+}
+
+/// `NodeResource::Stream` must survive serde just like the other
+/// variants, so `NodeResourceSample` can carry a stream reading in its
+/// generic form if a subscriber wants dynamic dispatch.
+#[test]
+fn node_resource_stream_variant_roundtrip() {
+    let r = NodeResource::Stream;
+    roundtrip(&r);
+}
+
+/// Zero width / height means the publisher produced a frame with no
+/// pixels — useful signal but not a valid payload (guards against a
+/// publisher that forgot to set the dims).
+#[test]
+fn stream_state_rejects_zero_dimensions() {
+    let s = StreamState {
+        display_index: 0,
+        capture_backend: "dxgi".into(),
+        encoder_name: "h264_nvenc".into(),
+        encoder_pix_fmt: "nv12".into(),
+        width: 0,
+        height: 1080,
+        fps: 4.0,
+    };
+    assert!(!s.is_valid());
+}
+
+/// Empty backend name signals a caller that didn't wire the field —
+/// we'd rather the subscriber skip the row than render "" in the UI.
+#[test]
+fn stream_state_rejects_empty_backend() {
+    let s = StreamState {
+        display_index: 0,
+        capture_backend: "".into(),
+        encoder_name: "h264_nvenc".into(),
+        encoder_pix_fmt: "nv12".into(),
+        width: 1920,
+        height: 1080,
+        fps: 4.0,
+    };
+    assert!(!s.is_valid());
+}
+
+/// Negative fps is nonsense (pacing hasn't settled, or the field got
+/// initialized from a bad clock). Zero is valid — means idle at this
+/// instant, not an invalid payload.
+#[test]
+fn stream_state_rejects_negative_fps() {
+    let s = StreamState {
+        display_index: 0,
+        capture_backend: "wgc".into(),
+        encoder_name: "h264_nvenc".into(),
+        encoder_pix_fmt: "yuv420p".into(),
+        width: 1920,
+        height: 1080,
+        fps: -1.0,
+    };
+    assert!(!s.is_valid());
 }
 
 // --- Display types ---
@@ -155,8 +280,12 @@ fn display_frame_roundtrip() {
 fn display_frame_empty_data_invalid() {
     let f = DisplayFrame {
         display_id: "hdmi-0".into(),
-        width: 1920, height: 1080, codec: Codec::Raw,
-        timestamp_us: 0, sequence: 0, data: vec![],
+        width: 1920,
+        height: 1080,
+        codec: Codec::Raw,
+        timestamp_us: 0,
+        sequence: 0,
+        data: vec![],
     };
     assert!(!f.is_valid());
 }
@@ -166,7 +295,8 @@ fn display_info_roundtrip() {
     let i = DisplayInfo {
         display_id: "scrcpy-0".into(),
         name: "Galaxy Tab S9".into(),
-        width: 2560, height: 1600,
+        width: 2560,
+        height: 1600,
         source_type: DisplaySourceType::ScrcpyTablet,
     };
     roundtrip(&i);
@@ -179,7 +309,8 @@ fn display_info_roundtrip() {
 fn mouse_event_roundtrip() {
     let e = InputEvent::Mouse(MouseEvent {
         action: MouseAction::Click,
-        x: 100.0, y: 200.0,
+        x: 100.0,
+        y: 200.0,
         button: Some(MouseButton::Left),
     });
     roundtrip(&e);
@@ -201,8 +332,10 @@ fn key_event_roundtrip() {
 fn touch_event_roundtrip() {
     let e = InputEvent::Touch(TouchEvent {
         action: TouchAction::Swipe,
-        x: 100.0, y: 200.0,
-        x2: Some(300.0), y2: Some(400.0),
+        x: 100.0,
+        y: 200.0,
+        x2: Some(300.0),
+        y2: Some(400.0),
         duration_ms: Some(500),
     });
     roundtrip(&e);
@@ -248,7 +381,8 @@ fn schedule_decision_invalid_tier() {
 fn tier_route_roundtrip() {
     let r = TierRoute {
         node: "win-a1".into(),
-        from_tier: 1, to_tier: 3,
+        from_tier: 1,
+        to_tier: 3,
         reason: "overload predicted".into(),
     };
     roundtrip(&r);
@@ -388,15 +522,13 @@ fn metric_sample_roundtrip() {
 fn metric_batch_roundtrip() {
     let b = MetricBatch {
         service: "screen-pub".into(),
-        samples: vec![
-            MetricSample {
-                name: "fps".into(),
-                value: 29.8,
-                unit: Some("fps".into()),
-                timestamp: Utc::now(),
-                tags: vec![],
-            },
-        ],
+        samples: vec![MetricSample {
+            name: "fps".into(),
+            value: 29.8,
+            unit: Some("fps".into()),
+            timestamp: Utc::now(),
+            tags: vec![],
+        }],
     };
     roundtrip(&b);
     assert!(b.is_valid());
