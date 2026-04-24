@@ -34,17 +34,61 @@ pub enum RecordCommand {
     ///
     /// `record_dir` overrides the leaf's default storage path when
     /// provided (e.g. `E:\nexox-recordings` vs `F:\nexox-recordings`).
-    Start { record_dir: Option<String> },
+    /// `target` selects what gets captured — primary display if None.
+    /// The field is `#[serde(default)]` so pre-target JSON (just
+    /// `{"record_dir": ...}`) still parses.
+    Start {
+        record_dir: Option<String>,
+        #[serde(default)]
+        target: Option<RecordTarget>,
+    },
     /// Flush open files and close the current session.
     Stop,
     /// Return current session state without side effects.
     Status,
 }
 
+/// What the recorder should capture for one session. Backward-compat
+/// note: added after the initial RecordCommand shape, but thanks to
+/// `Option<RecordTarget>` + `#[serde(default)]` on the Start variant,
+/// older signal files that omit this key still deserialize — they
+/// simply default to the primary display (the pre-target behavior).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RecordTarget {
+    /// One physical monitor, 0-based index matching
+    /// `screenshots::Screen::all()` order (same as live screen-pub).
+    Display { index: u32 },
+    /// One specific window. `title_contains` is a case-insensitive
+    /// substring of the window title; the leaf picks the first
+    /// visible top-level window whose title matches. Empty string
+    /// is invalid (would match everything).
+    Window { title_contains: String },
+}
+
+impl PayloadValidation for RecordTarget {
+    fn is_valid(&self) -> bool {
+        match self {
+            RecordTarget::Display { .. } => true,
+            RecordTarget::Window { title_contains } => !title_contains.trim().is_empty(),
+        }
+    }
+}
+
 impl PayloadValidation for RecordCommand {
     fn is_valid(&self) -> bool {
         match self {
-            RecordCommand::Start { record_dir: Some(p) } => !p.is_empty(),
+            RecordCommand::Start { record_dir, target } => {
+                if let Some(p) = record_dir {
+                    if p.is_empty() {
+                        return false;
+                    }
+                }
+                match target {
+                    Some(t) => t.is_valid(),
+                    None => true,
+                }
+            }
             _ => true,
         }
     }

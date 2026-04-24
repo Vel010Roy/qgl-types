@@ -7,7 +7,7 @@
 use chrono::Utc;
 use qgl_types::recorder::{
     CapturedInputEvent, InputAction, InputData, InputDevice, LockState, MouseButton,
-    RecordCommand, SessionDisplay, SessionManifest, SessionStatus,
+    RecordCommand, RecordTarget, SessionDisplay, SessionManifest, SessionStatus,
 };
 use qgl_types::validate::PayloadValidation;
 use uuid::Uuid;
@@ -22,7 +22,10 @@ where
 
 #[test]
 fn record_command_start_without_dir_roundtrips() {
-    let cmd = RecordCommand::Start { record_dir: None };
+    let cmd = RecordCommand::Start {
+        record_dir: None,
+        target: None,
+    };
     let back: RecordCommand = roundtrip(&cmd);
     assert_eq!(back, cmd);
     assert!(cmd.is_valid());
@@ -32,6 +35,7 @@ fn record_command_start_without_dir_roundtrips() {
 fn record_command_start_with_dir_roundtrips() {
     let cmd = RecordCommand::Start {
         record_dir: Some(r"E:\nexox-recordings".into()),
+        target: None,
     };
     let back: RecordCommand = roundtrip(&cmd);
     assert_eq!(back, cmd);
@@ -42,8 +46,60 @@ fn record_command_start_with_dir_roundtrips() {
 fn record_command_rejects_empty_dir() {
     let cmd = RecordCommand::Start {
         record_dir: Some(String::new()),
+        target: None,
     };
     assert!(!cmd.is_valid(), "empty record_dir must fail validation");
+}
+
+#[test]
+fn record_command_start_with_display_target_roundtrips() {
+    let cmd = RecordCommand::Start {
+        record_dir: None,
+        target: Some(RecordTarget::Display { index: 1 }),
+    };
+    let back: RecordCommand = roundtrip(&cmd);
+    assert_eq!(back, cmd);
+    assert!(cmd.is_valid());
+}
+
+#[test]
+fn record_command_start_with_window_target_roundtrips() {
+    let cmd = RecordCommand::Start {
+        record_dir: None,
+        target: Some(RecordTarget::Window {
+            title_contains: "Chrome".into(),
+        }),
+    };
+    let back: RecordCommand = roundtrip(&cmd);
+    assert_eq!(back, cmd);
+    assert!(cmd.is_valid());
+}
+
+#[test]
+fn record_command_rejects_empty_window_title() {
+    let cmd = RecordCommand::Start {
+        record_dir: None,
+        target: Some(RecordTarget::Window {
+            title_contains: "  ".into(),
+        }),
+    };
+    assert!(!cmd.is_valid(), "blank window title must fail validation");
+}
+
+#[test]
+fn record_command_backwards_compat_parses_legacy_start_without_target() {
+    // Before RecordTarget existed, signal files contained just
+    //   {"type":"start","record_dir":"E:\\nexox-recordings"}
+    // New code must still deserialize them (target defaults to None).
+    let legacy = r#"{"type":"start","record_dir":"E:\\nexox-recordings"}"#;
+    let cmd: RecordCommand = serde_json::from_str(legacy).expect("legacy must parse");
+    assert_eq!(
+        cmd,
+        RecordCommand::Start {
+            record_dir: Some(r"E:\nexox-recordings".into()),
+            target: None,
+        }
+    );
 }
 
 #[test]
