@@ -13,6 +13,7 @@ pub mod events;
 pub mod input;
 pub mod logs;
 pub mod metrics;
+pub mod recorder;
 pub mod state;
 pub mod validate;
 
