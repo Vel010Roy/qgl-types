@@ -99,6 +99,11 @@ impl PayloadValidation for BatteryState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkAddressInfo {
+    /// LAN/zenoh bind IP — leaf 가 zenoh router 에 bind 한 안정적인 IP
+    /// (deploy 시 `--ip 192.168.10.X` 인자 또는 `detect_ethernet_ip`
+    /// 결과). NIC 우선순위 흔들림 없이 dashboard Internal IP 컬럼이
+    /// 이 값을 우선 표시 → 깜빡임 fix.
+    pub bind_ip: Option<String>,
     pub internal_ip: Option<String>,
     pub lan_ip: Option<String>,
     pub public_ip: Option<String>,
