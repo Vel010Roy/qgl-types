@@ -22,6 +22,13 @@ pub enum NodeResource {
     /// lands; argox Status tab surfaces it as `Capture` + `EncFmt`
     /// columns.
     Stream,
+    /// Node identity / deployment metadata (see `NodeIdentity`).
+    /// Published on `nexox/up/state/<node>/identity` at low
+    /// frequency (5 min) — git commit / branch / build time +
+    /// hostname + public IP. Dashboard status tab surfaces these
+    /// so the operator knows which build is running and whether
+    /// public IP changed.
+    Identity,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -173,6 +180,48 @@ impl PayloadValidation for StreamState {
             && !self.capture_backend.is_empty()
             && !self.encoder_name.is_empty()
             && !self.encoder_pix_fmt.is_empty()
+    }
+}
+
+/// Node identity / deployment metadata. Published on
+/// `nexox/up/state/<node>/identity` at low cadence (every 5 min).
+///
+/// Why a separate topic from the 6 high-frequency resources:
+///   - Git commit / build time are static for a process lifetime —
+///     no point spamming them at 1 Hz.
+///   - Public IP changes rarely (router DHCP, ISP). 5 min poll keeps
+///     the external API call rate trivial.
+///   - Subscribers want to render this in a header / status row, not
+///     in the time-series resource panels.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct NodeIdentity {
+    /// Short host name (`hostname` POSIX, `COMPUTERNAME` Windows).
+    pub hostname: String,
+    /// Short git commit hash of the build (`NEXOX_GIT_COMMIT` env at
+    /// build time). `"unknown"` on local dev builds without ssh-deploy
+    /// providing the env var.
+    pub git_commit: String,
+    /// Git branch name at build time (`NEXOX_GIT_BRANCH`).
+    pub git_branch: String,
+    /// Build timestamp (RFC 3339 UTC, e.g. `2026-04-25T11:23:45Z`).
+    pub build_time: String,
+    /// LAN IP the node is binding zenoh to (eth/wifi auto-detect or
+    /// `--ip` flag override). Differs from `public_ip` when behind NAT.
+    pub local_ip: String,
+    /// External (public) IP as observed via a low-frequency external
+    /// API call (`api.ipify.org` or fallback). `None` when the call
+    /// failed (no internet, API down, behind firewall blocking egress).
+    pub public_ip: Option<String>,
+    /// RFC 3339 UTC of the most recent successful public IP fetch.
+    /// Stale value with `None` public_ip = the cached IP from before
+    /// the egress went down — useful for the dashboard to show an
+    /// "IP last verified at X" warning.
+    pub public_ip_observed_at: Option<String>,
+}
+
+impl PayloadValidation for NodeIdentity {
+    fn is_valid(&self) -> bool {
+        !self.hostname.is_empty() && !self.git_commit.is_empty() && !self.build_time.is_empty()
     }
 }
 
