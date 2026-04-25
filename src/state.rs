@@ -101,9 +101,15 @@ impl PayloadValidation for BatteryState {
 pub struct NetworkAddressInfo {
     /// LAN/zenoh bind IP — leaf 가 zenoh router 에 bind 한 안정적인 IP
     /// (deploy 시 `--ip 192.168.10.X` 인자 또는 `detect_ethernet_ip`
-    /// 결과). NIC 우선순위 흔들림 없이 dashboard Internal IP 컬럼이
+    /// 결과). NIC 우선순위 흔들림 없이 dashboard LAN IP 컬럼이
     /// 이 값을 우선 표시 → 깜빡임 fix.
     pub bind_ip: Option<String>,
+    /// WAN egress NIC IP — OS routing table 의 default route 가 사용하는
+    /// NIC 의 자기 IP. 인터넷으로 packet 나갈 때 출발 IP. NAT 안에선
+    /// public_ip 와 다른 값 (예: bind_ip=192.168.10.x = LAN, wan_ip=10.x.x.x
+    /// = Wi-Fi NIC, public_ip=112.x.x.x = 라우터 외부). NAT 없는 환경
+    /// (직접 인터넷) 에선 wan_ip == public_ip.
+    pub wan_ip: Option<String>,
     pub internal_ip: Option<String>,
     pub lan_ip: Option<String>,
     pub public_ip: Option<String>,
