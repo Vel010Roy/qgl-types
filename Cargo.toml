@@ -11,3 +11,12 @@ chrono = { version = "0.4", features = ["serde"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.22"
+# Optional — enables `#[derive(TS)]` for TypeScript schema export.
+# Default off so nexox/minox/argox 의 cargo build 영향 없음.
+# leaf-tauri/src-tauri 만 features = ["ts"] 로 활성.
+ts-rs = { version = "10", features = ["chrono-impl", "uuid-impl"], optional = true }
+
+[features]
+default = []
+# TS interface 자동 생성 — `cargo test --features ts` 시 .ts 파일 export.
+ts = ["dep:ts-rs"]

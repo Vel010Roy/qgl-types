@@ -19,7 +19,13 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+#[cfg(feature = "ts")]
+use ts_rs::TS;
+
 use crate::validate::PayloadValidation;
+
+// TS export 경로: leaf-tauri/nexox-leaf/src/types/ — frontend 가 import.
+// `--features ts` 일 때만 적용.
 
 // ---------------------------------------------------------------------
 // Control plane: operator → leaf
@@ -29,6 +35,11 @@ use crate::validate::PayloadValidation;
 /// to the leaf's recording subsystem.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub enum RecordCommand {
     /// Begin a new recording session.
     ///
@@ -55,6 +66,11 @@ pub enum RecordCommand {
 /// simply default to the primary display (the pre-target behavior).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub enum RecordTarget {
     /// One physical monitor, 0-based index matching
     /// `screenshots::Screen::all()` order (same as live screen-pub).
@@ -105,6 +121,11 @@ impl PayloadValidation for RecordCommand {
 /// is authoritative for replay sync (matches the frame timestamp file
 /// `display-<n>.ts.jsonl`).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub struct CapturedInputEvent {
     pub seq_no: u64,
     pub offset_us: u64,
@@ -115,6 +136,11 @@ pub struct CapturedInputEvent {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub enum InputDevice {
     Keyboard,
     Mouse,
@@ -122,6 +148,11 @@ pub enum InputDevice {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub enum InputAction {
     KeyDown,
     KeyUp,
@@ -133,6 +164,11 @@ pub enum InputAction {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub enum InputData {
     Key {
         /// Symbolic key name — `rdev::Key` Debug form preserves the
@@ -157,6 +193,11 @@ pub enum InputData {
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub struct LockState {
     pub caps: bool,
     pub num: bool,
@@ -165,6 +206,11 @@ pub struct LockState {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub enum MouseButton {
     Left,
     Right,
@@ -190,6 +236,11 @@ impl PayloadValidation for CapturedInputEvent {
 /// metadata and as a crash marker — on restart, any manifest still in
 /// `Recording` state is either resumed or promoted to `Crashed`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub struct SessionManifest {
     pub session_id: Uuid,
     pub node_id: String,
@@ -202,6 +253,11 @@ pub struct SessionManifest {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub enum SessionStatus {
     Recording,
     Completed,
@@ -209,6 +265,11 @@ pub enum SessionStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "ts",
+    derive(TS),
+    ts(export, export_to = "bindings/")
+)]
 pub struct SessionDisplay {
     pub display_index: u32,
     pub width: u32,
