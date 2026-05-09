@@ -274,6 +274,13 @@ pub struct SessionDisplay {
     pub display_index: u32,
     pub width: u32,
     pub height: u32,
+    /// 2026-05-07 fix: multi-monitor logical origin. main 의 (0,0) 기준
+    /// offset. mac CGEventTap 의 mouse global 좌표 - origin = display-local
+    /// 좌표 → mp4 frame 매핑 정확.
+    #[serde(default)]
+    pub origin_x: i32,
+    #[serde(default)]
+    pub origin_y: i32,
     pub fps: u32,
     pub codec: String,
 }
